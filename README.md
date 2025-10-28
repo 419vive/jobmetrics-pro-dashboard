@@ -381,10 +381,10 @@ MIT License - feel free to use this for your portfolio or learning
 
 ## 👤 Author
 
-**Jerry Lai**
-- LinkedIn: [Your LinkedIn]
-- Portfolio: [Your Portfolio]
-- Email: [Your Email]
+**Jerry Lai (Ho-Chu Lai)**
+- LinkedIn: [linkedin.com/in/ho-chu-lai-44355569](https://www.linkedin.com/in/ho-chu-lai-44355569/)
+- GitHub: [@419vive](https://github.com/419vive)
+- Email: [419vive@gmail.com](mailto:419vive@gmail.com)
 
 ---
 
