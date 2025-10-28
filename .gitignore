@@ -1,8 +1,14 @@
-# Environment
+# Environment & Secrets (NEVER COMMIT THESE!)
 .env
+.env.local
+.env.*.local
 venv/
 env/
 ENV/
+*.key
+*.pem
+secrets/
+.secrets/
 
 # Python
 __pycache__/

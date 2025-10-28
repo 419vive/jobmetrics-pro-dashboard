@@ -136,11 +136,23 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. **Set up environment variables**
+4. **Set up environment variables** 🔐
 ```bash
 cp .env.example .env
 # Edit .env and add your ANTHROPIC_API_KEY
 ```
+
+> **🔒 Security Note**: Your `.env` file contains sensitive API keys and is automatically protected:
+> - ✅ Blocked by `.gitignore` (won't be committed to git)
+> - ✅ Pre-commit hook scans for accidental leaks
+> - ✅ Only `.env.example` (template with no real keys) should be shared
+>
+> For production deployment with enterprise-grade security, see **[API Security Architecture](docs/04-operations/api-security-architecture.md)** for backend proxy setup.
+>
+> **Quick security check**:
+> ```bash
+> git check-ignore .env  # Should output: .env
+> ```
 
 5. **Generate sample data**
 ```bash

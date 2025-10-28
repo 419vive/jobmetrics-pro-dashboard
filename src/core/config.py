@@ -39,3 +39,15 @@ THRESHOLDS = {
 # Dashboard Configuration
 DASHBOARD_TITLE = "JobMetrics Pro - Self-Service Analytics"
 COMPANY_NAME = "Career Tech SaaS Platform"
+
+# Email Notification Configuration
+EMAIL_NOTIFICATIONS_ENABLED = os.getenv("EMAIL_NOTIFICATIONS_ENABLED", "false").lower() == "true"
+EMAIL_FROM = os.getenv("EMAIL_FROM", "alerts@jobmetrics.com")
+EMAIL_TO = os.getenv("EMAIL_TO", "admin@company.com")
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+
+# Slack Notification Configuration
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")

@@ -11,15 +11,42 @@ from analytics import SaaSAnalytics
 class AIQueryEngine:
     """Natural language query engine powered by Claude"""
 
-    def __init__(self):
+    def __init__(self, analytics=None, time_range_days=None):
+        """
+        Initialize AI query engine
+
+        Args:
+            analytics: Optional pre-initialized SaaSAnalytics instance (takes precedence)
+            time_range_days: Optional time range filter in days (only used if analytics not provided)
+        """
         if not config.ANTHROPIC_API_KEY:
             raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
 
         self.client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
-        self.analytics = SaaSAnalytics()
+
+        # Use provided analytics instance or create new one with time filter
+        if analytics is not None:
+            self.analytics = analytics
+        else:
+            self.analytics = SaaSAnalytics(time_range_days=time_range_days)
 
     def _get_metrics_context(self):
         """Get current metrics context for Claude"""
+        # Get channel performance data
+        channel_perf = self.analytics.get_channel_performance()
+        channel_data = {}
+        for _, row in channel_perf.iterrows():
+            channel_data[row['channel']] = {
+                "total_users": int(row['total_users']),
+                "conversions": int(row['conversions']),
+                "conversion_rate": f"{row['conversion_rate']:.2f}%",
+                "avg_cac": f"${row['avg_cac']:.2f}",
+                "avg_ltv": f"${row['avg_ltv']:.2f}",
+                "ltv_cac_ratio": f"{row['ltv_cac_ratio']:.2f}",
+                "roi": f"{row['roi']:.2f}%",
+                "total_mrr": f"${row['total_mrr']:.2f}"
+            }
+
         context = {
             "current_mrr": f"${self.analytics.get_current_mrr():,.2f}",
             "mrr_growth_30d": f"{self.analytics.get_mrr_growth_rate(30):.2f}%",
@@ -34,6 +61,7 @@ class AIQueryEngine:
             "mau": self.analytics.get_active_users('monthly'),
             "avg_match_rate": f"{self.analytics.get_avg_match_rate():.2f}%",
             "avg_scans_per_user": f"{self.analytics.get_avg_scans_per_user():.2f}",
+            "channel_performance": channel_data
         }
         return context
 

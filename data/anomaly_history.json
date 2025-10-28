@@ -1,0 +1,16 @@
+[
+  {
+    "timestamp": "2025-10-27T11:49:49.702571",
+    "total_anomalies": 1,
+    "critical_count": 1,
+    "warning_count": 0,
+    "anomalies": [
+      {
+        "metric": "Churn Rate",
+        "value": "0.38%",
+        "severity": "critical",
+        "message": "Churn rate (0.38%) exceeds critical threshold"
+      }
+    ]
+  }
+]

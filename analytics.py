@@ -11,7 +11,14 @@ import config
 class SaaSAnalytics:
     """Calculate key SaaS metrics and insights"""
 
-    def __init__(self):
+    def __init__(self, time_range_days=None):
+        """
+        Initialize analytics with optional time range filtering
+
+        Args:
+            time_range_days: Number of days to filter data (None = all data)
+        """
+        # Load all data
         self.users = pd.read_csv(config.DATA_DIR / 'users.csv', parse_dates=['signup_date'])
         self.subscriptions = pd.read_csv(
             config.DATA_DIR / 'subscriptions.csv',
@@ -20,14 +27,61 @@ class SaaSAnalytics:
         self.scans = pd.read_csv(config.DATA_DIR / 'scans.csv', parse_dates=['scan_date'])
         self.revenue = pd.read_csv(config.DATA_DIR / 'revenue.csv', parse_dates=['date'])
 
+        # Apply time range filter if specified
+        self.time_range_days = time_range_days
+        if time_range_days is not None:
+            self._apply_time_filter(time_range_days)
+
+    def _apply_time_filter(self, days):
+        """Filter all dataframes to only include data from the last N days"""
+        # Get the latest date from each dataframe
+        latest_date = max(
+            self.users['signup_date'].max(),
+            self.scans['scan_date'].max(),
+            self.revenue['date'].max()
+        )
+
+        cutoff_date = latest_date - timedelta(days=days)
+
+        # Filter each dataframe
+        self.users = self.users[self.users['signup_date'] >= cutoff_date]
+        self.scans = self.scans[self.scans['scan_date'] >= cutoff_date]
+        self.revenue = self.revenue[self.revenue['date'] >= cutoff_date]
+
+        # Filter subscriptions - include if started or active during the period
+        self.subscriptions = self.subscriptions[
+            (self.subscriptions['subscription_start'] >= cutoff_date) |
+            ((self.subscriptions['subscription_end'].isna()) |
+             (self.subscriptions['subscription_end'] >= cutoff_date))
+        ]
+
+        # Keep only subscriptions for users in the filtered dataset
+        valid_user_ids = set(self.users['user_id'])
+        self.subscriptions = self.subscriptions[self.subscriptions['user_id'].isin(valid_user_ids)]
+        self.scans = self.scans[self.scans['user_id'].isin(valid_user_ids)]
+
     def get_current_mrr(self):
         """Get current Monthly Recurring Revenue"""
+        if len(self.revenue) == 0:
+            return 0
         return self.revenue.iloc[-1]['mrr']
 
     def get_mrr_growth_rate(self, days=30):
         """Calculate MRR growth rate over specified days"""
+        if len(self.revenue) < 2:
+            return 0  # Not enough data
+
         current_mrr = self.revenue.iloc[-1]['mrr']
-        past_mrr = self.revenue.iloc[-days]['mrr']
+
+        # If we don't have enough historical data, use the earliest available
+        if len(self.revenue) <= days:
+            past_mrr = self.revenue.iloc[0]['mrr']
+        else:
+            past_mrr = self.revenue.iloc[-days]['mrr']
+
+        if past_mrr == 0:
+            return 0
+
         growth_rate = ((current_mrr - past_mrr) / past_mrr) * 100
         return growth_rate
 
@@ -274,23 +328,81 @@ class SaaSAnalytics:
         return segment_stats
 
     def get_channel_performance(self):
-        """Analyze performance by acquisition channel"""
+        """Analyze performance by acquisition channel with ROI calculations"""
+        # Get users per channel
         channel_users = self.users.groupby('acquisition_channel').agg({
             'user_id': 'count',
             'cac': 'mean'
         }).reset_index()
 
+        # Get conversions and revenue per channel
         channel_conversions = self.users.merge(
-            self.subscriptions[['user_id', 'mrr']],
-            on='user_id'
-        ).groupby('acquisition_channel').size().reset_index(name='conversions')
+            self.subscriptions[['user_id', 'mrr', 'status']],
+            on='user_id',
+            how='left'
+        )
 
-        channel_stats = channel_users.merge(channel_conversions, on='acquisition_channel', how='left')
-        channel_stats['conversions'] = channel_stats['conversions'].fillna(0)
+        channel_stats_agg = channel_conversions.groupby('acquisition_channel').agg({
+            'user_id': 'count',
+            'mrr': lambda x: x.notna().sum(),  # Count conversions
+            'status': lambda x: (x == 'active').sum()  # Active subscribers
+        }).reset_index()
+
+        # Calculate total MRR per channel
+        channel_mrr = channel_conversions[channel_conversions['status'] == 'active'].groupby('acquisition_channel').agg({
+            'mrr': 'sum'
+        }).reset_index()
+
+        # Merge all stats
+        channel_stats = channel_users.merge(channel_stats_agg[['acquisition_channel', 'mrr', 'status']],
+                                            on='acquisition_channel', how='left')
+        channel_stats = channel_stats.merge(channel_mrr, on='acquisition_channel', how='left', suffixes=('', '_total'))
+
+        # Fill NaN values
+        channel_stats['mrr'] = channel_stats['mrr'].fillna(0).astype(int)
+        channel_stats['status'] = channel_stats['status'].fillna(0).astype(int)
+        channel_stats['mrr_total'] = channel_stats['mrr_total'].fillna(0)
+
+        # Calculate metrics
+        channel_stats['conversions'] = channel_stats['mrr']
         channel_stats['conversion_rate'] = (
             channel_stats['conversions'] / channel_stats['user_id'] * 100
         )
 
-        channel_stats.columns = ['channel', 'total_users', 'avg_cac', 'conversions', 'conversion_rate']
+        # Calculate LTV per channel (simplified: ARPU * 12 months / churn)
+        # Using overall churn rate for simplicity
+        monthly_churn = self.get_churn_rate(30) / 100
+        if monthly_churn == 0:
+            monthly_churn = 0.01  # Default 1% to avoid division by zero
+
+        channel_stats['avg_ltv'] = (channel_stats['mrr_total'] / channel_stats['status']) / monthly_churn
+        channel_stats['avg_ltv'] = channel_stats['avg_ltv'].fillna(0)
+
+        # Calculate ROI: (LTV - CAC) / CAC * 100
+        # For organic (CAC=0), use a special calculation to avoid infinity
+        channel_stats['roi'] = channel_stats.apply(
+            lambda row: 999999 if row['cac'] == 0 else ((row['avg_ltv'] - row['cac']) / row['cac'] * 100),
+            axis=1
+        )
+        channel_stats['roi'] = channel_stats['roi'].fillna(0)
+
+        # LTV:CAC ratio
+        # For organic (CAC=0), use 999999 to represent "infinite" ROI
+        channel_stats['ltv_cac_ratio'] = channel_stats.apply(
+            lambda row: 999999 if row['cac'] == 0 else (row['avg_ltv'] / row['cac']),
+            axis=1
+        )
+        channel_stats['ltv_cac_ratio'] = channel_stats['ltv_cac_ratio'].fillna(0)
+
+        # Select and rename columns
+        channel_stats = channel_stats[[
+            'acquisition_channel', 'user_id', 'conversions', 'conversion_rate',
+            'cac', 'avg_ltv', 'ltv_cac_ratio', 'roi', 'mrr_total'
+        ]]
+
+        channel_stats.columns = [
+            'channel', 'total_users', 'conversions', 'conversion_rate',
+            'avg_cac', 'avg_ltv', 'ltv_cac_ratio', 'roi', 'total_mrr'
+        ]
 
         return channel_stats
