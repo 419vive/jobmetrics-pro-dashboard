@@ -76,19 +76,56 @@ A production-ready, AI-powered analytics dashboard built for SaaS platforms in t
 
 ### Architecture
 ```
-self-help-dashboard/
-├── config.py              # Configuration and settings
-├── data_generator.py      # Generate realistic SaaS data
-├── analytics.py           # Core analytics engine
-├── ai_query.py           # AI-powered query module
-├── dashboard.py          # Main Streamlit application
-├── requirements.txt      # Python dependencies
-└── data/                 # Generated datasets
-    ├── users.csv
-    ├── subscriptions.csv
-    ├── scans.csv
-    └── revenue.csv
+jobmetrics-pro-dashboard/
+├── src/                          # Source code (modular architecture)
+│   ├── core/                     # Core business logic
+│   │   ├── analytics.py          # SaaS metrics calculations & analysis
+│   │   ├── ai_query.py           # AI-powered query engine (Claude API)
+│   │   └── config.py             # Configuration management
+│   ├── dashboard/                # Frontend layer
+│   │   ├── dashboard.py          # Main Streamlit application
+│   │   ├── i18n.py               # Internationalization (EN/ZH)
+│   │   └── i18n_jerry_style.py   # Extended translations
+│   └── utils/                    # Utility functions
+│
+├── data/                         # Generated datasets (synthetic)
+│   ├── users.csv                 # User demographics & segments
+│   ├── subscriptions.csv         # Subscription lifecycle data
+│   ├── scans.csv                 # Product usage data
+│   ├── revenue.csv               # Daily revenue tracking
+│   └── anomaly_history.json      # Anomaly detection log
+│
+├── docs/                         # Comprehensive documentation
+│   ├── 00-START-HERE.md          # Quick start guide
+│   ├── 01-getting-started/       # Setup & installation
+│   ├── 03-technical/             # Architecture & design
+│   ├── 04-operations/            # Deployment & security
+│   ├── 05-project-management/    # Project info & decisions
+│   ├── 06-development-logs/      # Bug reports & performance
+│   └── 07-demo/                  # Demo scripts & interview prep
+│
+├── Root-level files (legacy/compatibility)
+│   ├── config.py                 # [Legacy] Config (use src/core/config.py)
+│   ├── data_generator.py         # Data generation script
+│   ├── analytics.py              # [Legacy] Analytics (use src/core/analytics.py)
+│   ├── ai_query.py               # [Legacy] AI (use src/core/ai_query.py)
+│   └── dashboard.py              # [Legacy] Dashboard (use src/dashboard/dashboard.py)
+│
+├── Scripts & utilities
+│   ├── run_dashboard.sh          # Quick start script
+│   ├── START_DEMO.sh             # Demo launcher
+│   ├── start_with_proxy.sh       # API proxy mode
+│   ├── api_proxy.py              # API key protection proxy
+│   ├── api_proxy_client.py       # Proxy client
+│   └── daily_anomaly_checker.py  # Scheduled monitoring
+│
+├── requirements.txt              # Python dependencies
+├── .env.example                  # Environment template
+├── .gitignore                    # Git ignore rules
+└── README.md                     # This file
 ```
+
+**Note**: The project follows a modular architecture with source code in `src/`. Legacy files remain in the root for backward compatibility.
 
 ## 📈 Data Model
 
